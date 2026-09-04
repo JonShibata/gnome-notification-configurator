@@ -114,6 +114,7 @@ type SettingsEvents = {
   ignoreIdleChanged: [boolean];
   alwaysNormalUrgencyChanged: [boolean];
   activateWindowOnAttentionChanged: [boolean];
+  autoRemovalTimeoutChanged: [number];
 };
 
 export class SettingsManager {
@@ -129,6 +130,7 @@ export class SettingsManager {
   private _ignoreIdle = true;
   private _alwaysNormalUrgency = false;
   private _activateWindowOnAttention = false;
+  private _autoRemovalTimeout = 0;
   private _globalConfiguration: GlobalConfiguration =
     SettingsManager.defaultGlobalConfiguration();
   private _patterns: PatternConfiguration[] = [];
@@ -271,6 +273,10 @@ export class SettingsManager {
 
   get activateWindowOnAttention() {
     return this._activateWindowOnAttention;
+  }
+
+  get autoRemovalTimeout() {
+    return this._autoRemovalTimeout;
   }
 
   get notificationPosition() {
@@ -482,6 +488,7 @@ export class SettingsManager {
       this._globalConfiguration.urgency.alwaysNormalUrgency;
     this._activateWindowOnAttention =
       this._globalConfiguration.windowAttention.activateInstead;
+    this._autoRemovalTimeout = this.settings.get_int("auto-removal-timeout");
   }
 
   private listen() {
@@ -506,6 +513,7 @@ export class SettingsManager {
         "activateWindowOnAttentionChanged",
         this._activateWindowOnAttention,
       );
+      this.events.emit("autoRemovalTimeoutChanged", this._autoRemovalTimeout);
     };
 
     this.settingSignals.push(
@@ -518,6 +526,12 @@ export class SettingsManager {
       this.settings.connect("changed::patterns", () => {
         this.load();
         emitChanges();
+      }),
+    );
+    this.settingSignals.push(
+      this.settings.connect("changed::auto-removal-timeout", () => {
+        this._autoRemovalTimeout = this.settings.get_int("auto-removal-timeout");
+        this.events.emit("autoRemovalTimeoutChanged", this._autoRemovalTimeout);
       }),
     );
   }

@@ -93,6 +93,9 @@ export default class NotificationConfiguratorPreferences extends ExtensionPrefer
   private patternsList!: Gtk.ListBox;
 
   fillPreferencesWindow(window: Adw.PreferencesWindow) {
+    window.set_default_size(800, 1000);
+    window.set_search_enabled(true);
+
     this.settings = this.getSettings();
     migrateRegexSchema(this.settings);
     this.loadData();
@@ -160,6 +163,34 @@ export default class NotificationConfiguratorPreferences extends ExtensionPrefer
       () => this.saveGlobal(),
       null,
     );
+
+    const autoRemovalGroup = new Adw.PreferencesGroup({
+      title: _("Auto-Removal"),
+      description: _(
+        "Automatically remove notifications from the notification stack",
+      ),
+    });
+    page.add(autoRemovalGroup);
+
+    const autoRemovalRow = new Adw.SpinRow({
+      title: _("Auto-Removal Timeout"),
+      subtitle: _(
+        "Time in milliseconds before removing notification from stack (0 = never remove)",
+      ),
+      adjustment: new Gtk.Adjustment({
+        lower: 0,
+        upper: 60000,
+        step_increment: 500,
+        page_increment: 1000,
+      }),
+    });
+    this.settings.bind(
+      "auto-removal-timeout",
+      autoRemovalRow,
+      "value",
+      Gio.SettingsBindFlags.DEFAULT,
+    );
+    autoRemovalGroup.add(autoRemovalRow);
 
     this.addTestSection(page);
   }

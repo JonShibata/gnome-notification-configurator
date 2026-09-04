@@ -4,6 +4,7 @@ import { InjectionManager } from "resource:///org/gnome/shell/extensions/extensi
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import * as MessageTray from "resource:///org/gnome/shell/ui/messageTray.js";
 
+import { BannerVisibilityAdapter } from "../managers/message-tray/banner-visibility.js";
 import { FullscreenAdapter } from "../managers/message-tray/fullscreen.js";
 import { IdleAdapter } from "../managers/message-tray/idle.js";
 import { MessageTrayManager } from "../managers/message-tray/manager.js";
@@ -15,6 +16,7 @@ import { UrgencyAdapter } from "../managers/source/urgency.js";
 
 import { SourceManager } from "../managers/source/manager.js";
 import { ProcessingAdapter } from "../managers/source/processing.js";
+import { RemovalAdapter } from "../managers/source/removal.js";
 
 import { ActivateAdapter } from "../managers/window-attention/activate.js";
 import { WindowAttentionManager } from "../managers/window-attention/manager.js";
@@ -39,6 +41,7 @@ export class NotificationsManager {
   private sourceManager: SourceManager;
   private windowAttentionManager: WindowAttentionManager;
 
+  private bannerVisibilityAdapter: BannerVisibilityAdapter;
   private fullscreenAdapter: FullscreenAdapter;
   private groupingAdapter: GroupingAdapter;
   private idleAdapter: IdleAdapter;
@@ -46,6 +49,7 @@ export class NotificationsManager {
   private urgencyAdapter: UrgencyAdapter;
   private processingAdapter: ProcessingAdapter;
   private activateAdapter: ActivateAdapter;
+  private removalAdapter: RemovalAdapter;
 
   constructor(settingsManager: SettingsManager) {
     this.messageTrayManager = new MessageTrayManager(settingsManager);
@@ -53,10 +57,15 @@ export class NotificationsManager {
     this.sourceManager = new SourceManager(settingsManager);
     this.windowAttentionManager = new WindowAttentionManager();
 
+    this.removalAdapter = new RemovalAdapter(settingsManager);
+    this.bannerVisibilityAdapter = new BannerVisibilityAdapter(
+      settingsManager,
+      this.removalAdapter,
+    );
     this.fullscreenAdapter = new FullscreenAdapter(settingsManager);
     this.groupingAdapter = new GroupingAdapter(settingsManager);
     this.idleAdapter = new IdleAdapter(settingsManager);
-    this.timeoutAdapter = new TimeoutAdapter(settingsManager);
+    this.timeoutAdapter = new TimeoutAdapter(settingsManager, this.removalAdapter);
     this.urgencyAdapter = new UrgencyAdapter(settingsManager);
     this.processingAdapter = new ProcessingAdapter(settingsManager);
     this.activateAdapter = new ActivateAdapter(settingsManager);
@@ -68,10 +77,13 @@ export class NotificationsManager {
     this.urgencyAdapter.register(this.sourceManager);
     this.processingAdapter.register(this.sourceManager);
     this.activateAdapter.register(this.windowAttentionManager);
+    this.removalAdapter.register(this.sourceManager);
 
     this.setupPositioning(settingsManager);
 
     this.enable();
+    // Enable banner visibility adapter after other patches
+    this.bannerVisibilityAdapter.enable();
   }
 
   private positionSignalId?: number;
@@ -156,7 +168,7 @@ export class NotificationsManager {
       proto,
       "_hideNotification",
       (original) =>
-        function (this: MessageTray.MessageTrayProto, animate) {
+        function (this: MessageTray.MessageTrayProto, animate: boolean) {
           if (self.isVerticalAlignTop()) {
             original.call(this, animate);
             return;
@@ -284,6 +296,7 @@ export class NotificationsManager {
       this.positionSignalId = undefined;
     }
 
+    this.bannerVisibilityAdapter.dispose();
     this.fullscreenAdapter.dispose();
     this.groupingAdapter.dispose();
     this.idleAdapter.dispose();
@@ -291,6 +304,7 @@ export class NotificationsManager {
     this.urgencyAdapter.dispose();
     this.processingAdapter.dispose();
     this.activateAdapter.dispose();
+    this.removalAdapter.dispose();
 
     this.messageTrayManager.dispose();
     this.notificationDaemonManager.dispose();

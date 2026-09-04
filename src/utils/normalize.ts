@@ -1,7 +1,7 @@
 import type { NotificationTheme } from "./constants.js";
 import { DEFAULT_THEME } from "./constants.js";
 
-export type NotificationAction = "hide" | "close";
+export type NotificationAction = "hide" | "close" | "show-and-remove";
 export type Position = "fill" | "left" | "right" | "center";
 export type VerticalPosition = "fill" | "top" | "center" | "bottom";
 export type Margins = {
@@ -15,7 +15,7 @@ export function normalizeAction(
   value: unknown,
   fallback: NotificationAction = "hide",
 ): NotificationAction {
-  if (value === "close" || value === "hide") {
+  if (value === "close" || value === "hide" || value === "show-and-remove") {
     return value;
   }
   return fallback;
